@@ -1,0 +1,10 @@
+POLTEKAD SECURITY SYSTEM - COMMUNICATION LAYER TEST REPORT
+========================================================
+Date/Time: 2026-07-04 11:02:56
+Total Messages Sent: 1,000
+Success Rate: 100%
+Average Latency: 0.3976 ms
+P95 Latency: 0.5281 ms
+Total Test Duration: 398.39 ms
+Latencies distribution: Target average <= 200 ms
+Status: SUCCESS (TARGET MET)
