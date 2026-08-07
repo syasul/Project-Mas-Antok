@@ -11,6 +11,7 @@
     let testStartTime = null;
     let testTimerInterval = null;
     let testMisclicks = 0;
+    let latencyHistory = []; // stores last 10 latency measurements
 
     window.addEventListener('load', () => {
         setInterval(updateClock, 1000);
@@ -47,7 +48,7 @@
 
     // Tab Switcher
     function switchTab(tabId) {
-        const tabs = ['overview', 'camera', 'drone', 'perimeter', 'iot', 'turret', 'decision', 'evaluator'];
+        const tabs = ['overview', 'camera', 'drone', 'perimeter', 'iot', 'turret', 'decision'];
         
         // Toggle visibility of panels
         tabs.forEach(t => {
@@ -78,8 +79,7 @@
             perimeter: ["SENSOR GETARAN PERIMETER", "Determinasi Seismik Sensor Pagar Sektor Pertahanan"],
             iot: ["GATEWAY UNIFIED KOMUNIKASI", "Rute Aliran Data MQTT, WebSockets, & REST API Gateway"],
             turret: ["UNIT DEFENSIVE TURRET", "Otorisasi Penembakan & Dial Rotasi Target Lock"],
-            decision: ["LOG KEPUTUSAN ANCAMAN", "Log Rationale IF-THEN Otomatisasi Penyelamatan"],
-            evaluator: ["PANEL EVALUASI KUANTITATIF", "Pengukuran Stopwatch Tugas & SUS Score UI/UX"]
+            decision: ["LOG KEPUTUSAN ANCAMAN", "Log Rationale IF-THEN Otomatisasi Penyelamatan"]
         };
 
         const pageTitle = document.getElementById('page-title');
@@ -112,10 +112,13 @@
             return;
         }
 
+        const startFetch = performance.now();
         try {
             const response = await fetch('/api/dashboard/status');
             if (!response.ok) throw new Error("API server crash");
             const data = await response.json();
+            const endFetch = performance.now();
+            const rtt = Math.round(endFetch - startFetch);
             
             const banner = document.getElementById('connection-error-banner');
             const asideStatus = document.getElementById('aside-system-status');
@@ -187,6 +190,11 @@
                 kpiTraffic.innerText = Math.round(baseThroughput + Math.random() * 40) + " Pkts / Detik";
             }
 
+            // Sync Diagnostik Kuantitatif & Health Sensor
+            updateLatencyUI(rtt);
+            updateSensorHealthUI(data.sensor_health);
+            updateSensorErrorLogsUI(data.sensor_error_logs);
+
         } catch (err) {
             showServerOfflineUI();
         }
@@ -215,6 +223,9 @@
                 </tr>
             `;
         }
+
+        // Sync Diagnostik Kuantitatif & Sensor Health to offline state
+        updateLatencyUIOffline();
     }
 
     async function changeServerState(state) {
@@ -881,33 +892,175 @@
         });
     }
 
-    // SUS Modal Questionnaire
-    function openSusModal() {
-        const backdrop = document.getElementById('sus-modal-backdrop');
-        if (backdrop) backdrop.classList.remove('hidden');
+    // Update BE-FE Latency UI
+    function updateLatencyUI(rtt) {
+        const valEl = document.getElementById('diagnostic-latency-val');
+        const badgeEl = document.getElementById('diagnostic-latency-badge');
+        const barContainer = document.getElementById('latency-bar-container');
+        const trendAvgEl = document.getElementById('latency-trend-avg');
+        
+        if (!valEl) return;
+        
+        valEl.innerText = rtt + ' ms';
+        
+        // Add to history
+        latencyHistory.push(rtt);
+        if (latencyHistory.length > 10) {
+            latencyHistory.shift();
+        }
+        
+        // Calculate average
+        const avg = Math.round(latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length);
+        if (trendAvgEl) trendAvgEl.innerText = `Avg: ${avg} ms`;
+        
+        // Classify network state
+        let status = 'EXCELLENT';
+        let badgeClass = 'text-[8px] font-bold px-2 py-0.5 rounded-full font-mono uppercase bg-emerald-50 text-emerald-600 border border-emerald-200/50';
+        if (rtt >= 50 && rtt < 150) {
+            status = 'NORMAL';
+            badgeClass = 'text-[8px] font-bold px-2 py-0.5 rounded-full font-mono uppercase bg-blue-50 text-blue-600 border border-blue-200/50';
+        } else if (rtt >= 150 && rtt < 300) {
+            status = 'SLOW';
+            badgeClass = 'text-[8px] font-bold px-2 py-0.5 rounded-full font-mono uppercase bg-amber-50 text-amber-600 border border-amber-200/50 animate-pulse';
+        } else if (rtt >= 300) {
+            status = 'DELAY';
+            badgeClass = 'text-[8px] font-bold px-2 py-0.5 rounded-full font-mono uppercase bg-rose-50 text-rose-600 border border-rose-200/50 animate-pulse';
+        }
+        
+        if (badgeEl) {
+            badgeEl.innerText = status;
+            badgeEl.className = badgeClass;
+        }
+        
+        // Render sparkline bars
+        if (barContainer) {
+            barContainer.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const val = latencyHistory[i] !== undefined ? latencyHistory[i] : 2;
+                let heightPct = Math.min(100, Math.max(8, (val / 120) * 100)); // scaling for high responsiveness
+                let colorClass = 'bg-indigo-500';
+                if (val >= 50 && val < 150) colorClass = 'bg-blue-500';
+                else if (val >= 150 && val < 300) colorClass = 'bg-amber-500';
+                else if (val >= 300) colorClass = 'bg-rose-500';
+                
+                const span = document.createElement('span');
+                span.className = `w-[8%] ${colorClass} rounded-sm transition-all duration-300`;
+                span.style.height = `${heightPct}%`;
+                span.title = latencyHistory[i] !== undefined ? `${val} ms` : 'Waiting...';
+                barContainer.appendChild(span);
+            }
+        }
     }
-    function closeSusModal() {
-        const backdrop = document.getElementById('sus-modal-backdrop');
-        if (backdrop) backdrop.classList.add('hidden');
-    }
-    function calculateSusScore(event) {
-        event.preventDefault();
-        const q1 = parseInt(document.querySelector('input[name="sus_q1"]:checked').value);
-        const q2 = parseInt(document.querySelector('input[name="sus_q2"]:checked').value);
-        const q3 = parseInt(document.querySelector('input[name="sus_q3"]:checked').value);
-        const q4 = parseInt(document.querySelector('input[name="sus_q4"]:checked').value);
-        const q5 = parseInt(document.querySelector('input[name="sus_q5"]:checked').value);
 
-        const scoreSum = (q1 - 1) + (5 - q2) + (q3 - 1) + (5 - q4) + (q5 - 1);
-        const SUS_Score = scoreSum * 5.0; // scale out of 100
-
-        const calcEl = document.getElementById('sus-calculated-score');
-        const displayEl = document.getElementById('sus-result-display');
-        if (calcEl) calcEl.innerText = `${SUS_Score} / 100`;
-        if (displayEl) displayEl.classList.remove('hidden');
+    // Handle offline UI for latency and sensor health
+    function updateLatencyUIOffline() {
+        const valEl = document.getElementById('diagnostic-latency-val');
+        const badgeEl = document.getElementById('diagnostic-latency-badge');
+        const trendAvgEl = document.getElementById('latency-trend-avg');
+        const barContainer = document.getElementById('latency-bar-container');
+        
+        if (valEl) valEl.innerText = 'OFFLINE';
+        if (badgeEl) {
+            badgeEl.innerText = 'DOWN';
+            badgeEl.className = 'text-[8px] font-bold px-2 py-0.5 rounded-full font-mono uppercase bg-rose-600 text-white animate-pulse';
+        }
+        if (trendAvgEl) trendAvgEl.innerText = 'Avg: -- ms';
+        
+        if (barContainer) {
+            barContainer.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const span = document.createElement('span');
+                span.className = 'w-[8%] bg-rose-600 h-0.5 rounded-sm animate-pulse';
+                barContainer.appendChild(span);
+            }
+        }
+        
+        // Mark all 5 sensors as offline
+        const sensors = ['camera', 'drone', 'perimeter', 'iot', 'turret'];
+        sensors.forEach(type => {
+            const ledPing = document.getElementById(`led-ping-${type}`);
+            const ledState = document.getElementById(`led-state-${type}`);
+            const detailEl = document.getElementById(`status-detail-${type}`);
+            const badgeEl = document.getElementById(`badge-state-${type}`);
+            
+            if (ledPing) ledPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75';
+            if (ledState) ledState.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600';
+            if (detailEl) detailEl.innerText = 'Sistem offline / terputus.';
+            if (badgeEl) {
+                badgeEl.innerText = 'OFFLINE';
+                badgeEl.className = 'text-[8px] font-bold font-mono px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 uppercase';
+            }
+        });
     }
 
-    function toggleEvaluatorWidget() {
-        switchTab('evaluator');
+    // Update Sensor Health state
+    function updateSensorHealthUI(health) {
+        if (!health) return;
+        
+        Object.entries(health).forEach(([type, details]) => {
+            const ledPing = document.getElementById(`led-ping-${type}`);
+            const ledState = document.getElementById(`led-state-${type}`);
+            const detailEl = document.getElementById(`status-detail-${type}`);
+            const badgeEl = document.getElementById(`badge-state-${type}`);
+            
+            if (!ledState) return;
+            
+            const isOk = details.status === 'Normal';
+            
+            if (isOk) {
+                if (ledPing) ledPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+                if (ledState) ledState.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500';
+                if (detailEl) detailEl.innerText = `${details.sensor_name}: Kondisi Baik`;
+                if (badgeEl) {
+                    badgeEl.innerText = 'NORMAL';
+                    badgeEl.className = 'text-[8px] font-bold font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 uppercase';
+                }
+            } else {
+                const colorClass = details.status_text === 'FAULT' ? 'rose' : 'amber';
+                if (ledPing) ledPing.className = `animate-ping absolute inline-flex h-full w-full rounded-full bg-${colorClass}-400 opacity-75`;
+                if (ledState) ledState.className = `relative inline-flex rounded-full h-2.5 w-2.5 bg-${colorClass}-500`;
+                if (detailEl) detailEl.innerText = `${details.sensor_name}: ${details.error_message}`;
+                if (badgeEl) {
+                    badgeEl.innerText = details.status_text;
+                    badgeEl.className = `text-[8px] font-bold font-mono px-2 py-0.5 rounded-full bg-${colorClass}-50 text-${colorClass}-600 uppercase animate-pulse`;
+                }
+            }
+        });
     }
+
+    // Render sensor anomalies on console terminal
+    function updateSensorErrorLogsUI(errorLogs) {
+        const consoleEl = document.getElementById('diagnostic-error-log-console');
+        const countEl = document.getElementById('diagnostic-error-count');
+        
+        if (!consoleEl) return;
+        
+        if (!errorLogs || errorLogs.length === 0) {
+            consoleEl.innerHTML = `<p class="text-slate-500 italic">Tidak ada warning/error sensor tercatat.</p>`;
+            if (countEl) {
+                countEl.innerText = '0 WARNINGS';
+                countEl.className = 'text-[8px] bg-slate-800 text-slate-400 font-bold px-1.5 py-0.5 rounded border border-slate-700/50 font-mono';
+            }
+            return;
+        }
+        
+        if (countEl) {
+            countEl.innerText = `${errorLogs.length} WARNINGS`;
+            countEl.className = 'text-[8px] bg-rose-500/20 text-rose-400 font-bold px-1.5 py-0.5 rounded border border-rose-500/10 font-mono';
+        }
+        
+        consoleEl.innerHTML = errorLogs.map(log => {
+            const time = new Date(log.created_at).toLocaleTimeString();
+            const colorClass = log.sensor_type === 'turret' ? 'text-rose-400' : 'text-amber-400';
+            return `
+                <div class="border-b border-slate-850 pb-1 flex gap-2">
+                    <span class="text-slate-500 shrink-0">[${time}]</span>
+                    <span class="${colorClass} font-bold shrink-0">${log.sensor_name}</span>
+                    <span class="text-slate-350">${log.message}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+
 </script>

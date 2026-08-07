@@ -97,7 +97,7 @@
     @include('partials.sidebar')
 
     <!-- RIGHT CONTENT AREA -->
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 lg:pl-64">
 
         <!-- HEADER -->
         @include('partials.header')
@@ -126,15 +126,13 @@
             <!-- TAB 7: DECISION LOGS -->
             @include('partials.tab-decision')
 
-            <!-- TAB 8: UX DIAGNOSTICS -->
-            @include('partials.tab-evaluator')
+
 
         </main>
 
     </div>
 
-    <!-- SUS EVALUATION MODAL -->
-    @include('partials.sus-modal')
+
 
     <!-- MAIN JAVASCRIPT CONTROL -->
     @include('partials.scripts')

@@ -2,7 +2,7 @@
 <div id="sidebar-backdrop" onclick="toggleMobileSidebar()" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 lg:hidden transition-all duration-300"></div>
 
 <!-- SIDEBAR -->
-<aside id="sidebar-nav" class="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between h-screen z-40 shadow-sm shrink-0 transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out">
+<aside id="sidebar-nav" class="fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between h-screen z-40 shadow-sm shrink-0 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
     <div>
         <!-- Brand Logo Area -->
         <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
@@ -78,10 +78,7 @@
                 <span>Decision Log & Rule</span>
             </button>
 
-            <button onclick="switchTab('evaluator')" id="nav-evaluator" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-all">
-                <i class="fa-solid fa-clipboard-question w-4"></i>
-                <span>Diagnostik UI/UX (SUS)</span>
-            </button>
+
         </nav>
     </div>
 

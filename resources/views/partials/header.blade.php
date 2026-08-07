@@ -25,7 +25,7 @@
         <!-- Operator Details -->
         <div class="flex items-center gap-3">
             <div class="hidden md:block text-right">
-                <p class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Letnan Dua Syamsul' }}</p>
+                <p class="text-xs font-bold text-slate-800">{{ Auth::user()->name ?? 'Letnan Dua Agung Nugroho' }}</p>
                 <p class="text-[9px] text-slate-400 font-medium font-mono uppercase">Operator Command</p>
             </div>
             

@@ -53,6 +53,114 @@ class DashboardApiController extends Controller
             'turret' => SensorLog::where('sensor_type', 'turret')->count(),
         ];
 
+        // Evaluate health of 5 sensor types
+        $sensorHealth = [];
+        $sensorTypes = ['camera', 'drone', 'perimeter', 'iot', 'turret'];
+        
+        foreach ($sensorTypes as $type) {
+            $latestLog = SensorLog::where('sensor_type', $type)->orderBy('created_at', 'desc')->first();
+            
+            $isProblematic = false;
+            $statusText = 'NORMAL';
+            $errorMessage = '';
+            
+            if ($latestLog) {
+                $data = $latestLog->data;
+                if ($type === 'camera') {
+                    if (!empty($data['detection']) && (in_array('armed_person', $data['detection']) || in_array('weapon', $data['detection']) || in_array('person', $data['detection']))) {
+                        $isProblematic = true;
+                        $statusText = 'WARNING';
+                        $errorMessage = 'Objek mencurigakan: ' . implode(', ', $data['detection']);
+                    }
+                } elseif ($type === 'drone') {
+                    if (($data['status'] ?? '') === 'unauthorized' || ($data['intrusion_detected'] ?? false)) {
+                        $isProblematic = true;
+                        $statusText = 'WARNING';
+                        $errorMessage = 'Intruksi udara tidak dikenal.';
+                    } elseif (($data['battery_pct'] ?? 100) < 20) {
+                        $isProblematic = true;
+                        $statusText = 'WARNING';
+                        $errorMessage = 'Baterai drone kritis: ' . ($data['battery_pct'] ?? 0) . '%';
+                    }
+                } elseif ($type === 'perimeter') {
+                    if (($data['vibration_level'] ?? 0) > 75 || ($data['breach_detected'] ?? false)) {
+                        $isProblematic = true;
+                        $statusText = 'WARNING';
+                        $errorMessage = 'Penyusupan pagar, getaran: ' . ($data['vibration_level'] ?? 0) . ' Hz';
+                    }
+                } elseif ($type === 'iot') {
+                    if (($data['packet_loss_pct'] ?? 0) > 20 || ($data['malicious_activity_detected'] ?? false)) {
+                        $isProblematic = true;
+                        $statusText = 'WARNING';
+                        $errorMessage = 'Deteksi DDoS / loss: ' . ($data['packet_loss_pct'] ?? 0) . '%';
+                    }
+                } elseif ($type === 'turret') {
+                    if (($data['status'] ?? '') === 'malfunction' || ($data['error_code'] ?? null)) {
+                        $isProblematic = true;
+                        $statusText = 'FAULT';
+                        $errorMessage = 'Malfungsi sistem: ' . ($data['error_code'] ?? 'COM_ERR');
+                    }
+                }
+            }
+            
+            $sensorHealth[$type] = [
+                'sensor_name' => $latestLog ? $latestLog->sensor_name : 'N/A',
+                'status' => $isProblematic ? 'Problematic' : 'Normal',
+                'status_text' => $statusText,
+                'error_message' => $errorMessage,
+                'updated_at' => $latestLog ? $latestLog->created_at->toIso8601String() : null
+            ];
+        }
+
+        // Fetch recent error/warning logs (anomalies) from the last 50 logs
+        $recentErrorLogs = [];
+        $recentLogs = SensorLog::orderBy('created_at', 'desc')->limit(50)->get();
+        foreach ($recentLogs as $log) {
+            $data = $log->data;
+            $isErr = false;
+            $errDetail = '';
+            
+            if ($log->sensor_type === 'camera') {
+                if (!empty($data['detection']) && (in_array('armed_person', $data['detection']) || in_array('weapon', $data['detection']) || in_array('person', $data['detection']))) {
+                    $isErr = true;
+                    $errDetail = 'Menemukan objek mencurigakan: ' . implode(', ', $data['detection']);
+                }
+            } elseif ($log->sensor_type === 'drone') {
+                if (($data['status'] ?? '') === 'unauthorized' || ($data['intrusion_detected'] ?? false)) {
+                    $isErr = true;
+                    $errDetail = 'Drone tidak dikenal terdeteksi.';
+                } elseif (($data['battery_pct'] ?? 100) < 20) {
+                    $isErr = true;
+                    $errDetail = 'Baterai drone rendah: ' . ($data['battery_pct'] ?? 0) . '%';
+                }
+            } elseif ($log->sensor_type === 'perimeter') {
+                if (($data['vibration_level'] ?? 0) > 75 || ($data['breach_detected'] ?? false)) {
+                    $isErr = true;
+                    $errDetail = 'Getaran pagar melebihi batas: ' . ($data['vibration_level'] ?? 0) . ' Hz';
+                }
+            } elseif ($log->sensor_type === 'iot') {
+                if (($data['packet_loss_pct'] ?? 0) > 20 || ($data['malicious_activity_detected'] ?? false)) {
+                    $isErr = true;
+                    $errDetail = 'Deteksi anomali paket / loss: ' . ($data['packet_loss_pct'] ?? 0) . '%';
+                }
+            } elseif ($log->sensor_type === 'turret') {
+                if (($data['status'] ?? '') === 'malfunction' || ($data['error_code'] ?? null)) {
+                    $isErr = true;
+                    $errDetail = 'Malfungsi sistem: ' . ($data['error_code'] ?? 'COM_ERR');
+                }
+            }
+            
+            if ($isErr) {
+                $recentErrorLogs[] = [
+                    'id' => $log->id,
+                    'sensor_type' => $log->sensor_type,
+                    'sensor_name' => $log->sensor_name,
+                    'message' => $errDetail,
+                    'created_at' => $log->created_at->toIso8601String()
+                ];
+            }
+        }
+
         // Retrieve mock stats
         $systemState = Cache::get('server_simulation_state', 'normal');
         $ddosActive = Cache::get('ddos_simulation_mode', false);
@@ -75,6 +183,8 @@ class DashboardApiController extends Controller
             'sensor_distribution' => $sensorCounts,
             'active_alerts' => $activeAlerts,
             'recent_decisions' => $recentDecisions,
+            'sensor_health' => $sensorHealth,
+            'sensor_error_logs' => $recentErrorLogs,
         ]);
     }
 
