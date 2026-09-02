@@ -22,7 +22,7 @@ class ExampleTest extends TestCase
     }
 
     /**
-     * Test login page loads successfully.
+     * Test login page renders successfully.
      */
     public function test_login_page_renders_successfully(): void
     {
@@ -40,58 +40,11 @@ class ExampleTest extends TestCase
         $user = User::factory()->create([
             'email' => 'operator@poltekad.mil.id',
             'role' => 'operator_pusat',
-            'rank_title' => 'Letnan Dua Agung Nugroho',
+            'rank_title' => 'Letnan Dua Antok',
         ]);
 
         $response = $this->actingAs($user)->get('/');
 
         $response->assertStatus(200);
-    }
-
-    /**
-     * Test gateway receive endpoint.
-     */
-    public function test_gateway_receive_endpoint_processes_payload(): void
-    {
-        $payload = [
-            'sensor_type' => 'perimeter',
-            'sensor_name' => 'SEISMIC_ZONE_1',
-            'protocol' => 'REST_API',
-            'data' => ['vibration_level' => 88.5, 'breach_detected' => true, 'sector' => 'Alpha'],
-            'timestamp' => round(microtime(true) * 1000),
-        ];
-
-        $response = $this->postJson('/api/gateway/receive', $payload);
-
-        $response->assertStatus(200);
-        $response->assertJsonStructure(['success', 'log_id', 'latency_ms']);
-    }
-
-    /**
-     * Test dashboard status API.
-     */
-    public function test_dashboard_status_endpoint(): void
-    {
-        $response = $this->getJson('/api/dashboard/status');
-
-        $response->assertStatus(200);
-        $response->assertJsonStructure([
-            'status',
-            'server_state',
-            'metrics' => [
-                'cpu_usage_pct',
-                'ram_usage_gb',
-                'disk_usage_pct',
-                'total_logs',
-                'total_events',
-                'total_decisions',
-                'avg_latency_ms',
-            ],
-            'sensor_distribution',
-            'active_alerts',
-            'recent_decisions',
-            'sensor_health',
-            'sensor_error_logs',
-        ]);
     }
 }

@@ -7,9 +7,6 @@ use App\Models\User;
 use App\Models\VerificationLog;
 use App\Models\SusResponse;
 use App\Models\UsabilitySession;
-use App\Models\SensorLog;
-use App\Models\SecurityEvent;
-use App\Models\DecisionLog;
 use Illuminate\Support\Carbon;
 
 class DatabaseSeeder extends Seeder
@@ -19,7 +16,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Seed Users (Letnan Dua Antok as primary operator)
+        // 1. Seed Default Operator User (Letnan Dua Antok)
         User::firstOrCreate(
             ['email' => 'operator@poltekad.mil.id'],
             [
@@ -48,9 +45,6 @@ class DatabaseSeeder extends Seeder
 
         // 4. Seed Task Completion Time (TCT) Usability Sessions
         $this->seedUsabilitySessions();
-
-        // 5. Seed Legacy Gateway Sensor Logs
-        $this->seedLegacySensors();
     }
 
     protected function seedVerificationLogs()
@@ -168,7 +162,6 @@ class DatabaseSeeder extends Seeder
 
     protected function seedSusResponses()
     {
-        // 5 Sample SUS responses from Poltekad operators
         $samples = [
             [
                 'name' => 'Letnan Dua Antok',
@@ -246,20 +239,6 @@ class DatabaseSeeder extends Seeder
                 'error_count' => $s['err'],
                 'clicks_count' => rand(2, 5),
                 'status' => 'completed',
-            ]);
-        }
-    }
-
-    protected function seedLegacySensors()
-    {
-        $sensorTypes = ['camera', 'drone', 'perimeter', 'iot', 'turret'];
-        foreach ($sensorTypes as $type) {
-            SensorLog::create([
-                'sensor_type' => $type,
-                'sensor_name' => strtoupper($type) . '_CPS_NODE_01',
-                'protocol' => 'WEBSOCKET',
-                'data' => ['status' => 'normal', 'health' => 'optimal', 'sector' => 'Alpha'],
-                'latency_ms' => rand(12, 35),
             ]);
         }
     }

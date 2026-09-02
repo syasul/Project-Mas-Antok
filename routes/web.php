@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CpsDashboardController;
-use App\Http\Controllers\ReportExportController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -17,14 +16,4 @@ Route::middleware('auth')->group(function () {
     // Usability Testing & SUS Evaluation Pages
     Route::get('/usability/sus', [CpsDashboardController::class, 'susForm'])->name('usability.sus');
     Route::get('/usability/results', [CpsDashboardController::class, 'usabilityResults'])->name('usability.results');
-
-    // Legacy Command Center view (accessible for command center monitoring)
-    Route::get('/command-center', function () {
-        return view('welcome');
-    })->name('command-center');
-
-    // Security Report & Telemetry Export Routes
-    Route::get('/reports/incident-pdf', [ReportExportController::class, 'exportPdf'])->name('reports.incident-pdf');
-    Route::get('/reports/sensors-csv', [ReportExportController::class, 'exportSensorCsv'])->name('reports.sensors-csv');
-    Route::get('/reports/decisions-csv', [ReportExportController::class, 'exportDecisionCsv'])->name('reports.decisions-csv');
 });
