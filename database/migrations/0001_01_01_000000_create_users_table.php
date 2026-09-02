@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('role')->default('operator_pusat');
+            $table->string('rank_title')->nullable()->default('Operator Taktis');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

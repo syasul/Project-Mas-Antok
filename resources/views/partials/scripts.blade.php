@@ -13,6 +13,265 @@
     let testMisclicks = 0;
     let latencyHistory = []; // stores last 10 latency measurements
 
+    // Web Audio API Tactical Sound Engine
+    let isAudioSirenEnabled = true;
+    let audioCtx = null;
+
+    function getAudioContext() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+
+    function toggleSirenAudio() {
+        isAudioSirenEnabled = !isAudioSirenEnabled;
+        const btn = document.getElementById('btn-toggle-siren-audio');
+        const icon = document.getElementById('siren-audio-icon');
+        const text = document.getElementById('siren-audio-text');
+        if (isAudioSirenEnabled) {
+            if (btn) btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold transition-all bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-sm";
+            if (icon) icon.className = "fa-solid fa-volume-high text-xs text-emerald-600";
+            if (text) text.innerText = "Sirene Audio: ON";
+            playToneBeep(880, 0.1);
+        } else {
+            if (btn) btn.className = "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold transition-all bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200 shadow-sm";
+            if (icon) icon.className = "fa-solid fa-volume-xmark text-xs text-slate-500";
+            if (text) text.innerText = "Sirene Audio: MUTE";
+        }
+    }
+
+    function playToneBeep(freq = 880, duration = 0.15) {
+        if (!isAudioSirenEnabled) return;
+        try {
+            const ctx = getAudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    function playTacticalSiren(type = 'alarm') {
+        if (!isAudioSirenEnabled) return;
+        try {
+            const ctx = getAudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            
+            const now = ctx.currentTime;
+            const duration = 2.4;
+
+            if (type === 'intruder' || type === 'alarm') {
+                // Military Air Raid Frequency Sweep
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.6);
+                osc.frequency.exponentialRampToValueAtTime(440, now + 1.2);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 1.8);
+                osc.frequency.exponentialRampToValueAtTime(440, now + 2.4);
+            } else if (type === 'breach' || type === 'uav') {
+                // Dual-tone pulsed alarm
+                osc.frequency.setValueAtTime(700, now);
+                osc.frequency.setValueAtTime(550, now + 0.3);
+                osc.frequency.setValueAtTime(700, now + 0.6);
+                osc.frequency.setValueAtTime(550, now + 0.9);
+                osc.frequency.setValueAtTime(700, now + 1.2);
+                osc.frequency.setValueAtTime(550, now + 1.5);
+                osc.frequency.setValueAtTime(700, now + 1.8);
+            } else {
+                // Warning Pulse
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+                osc.frequency.exponentialRampToValueAtTime(350, now + 0.8);
+            }
+
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration);
+        } catch (e) {}
+    }
+
+    // Leaflet GIS Map state
+    let leafletMap = null;
+    let currentMapMode = 'svg';
+
+    function switchMapMode(mode) {
+        currentMapMode = mode;
+        const btnSvg = document.getElementById('btn-map-mode-svg');
+        const btnGis = document.getElementById('btn-map-mode-gis');
+        const svgContainer = document.getElementById('map-blueprint-container');
+        const gisContainer = document.getElementById('map-gis-container');
+
+        if (mode === 'svg') {
+            if (btnSvg) btnSvg.className = "px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-1.5";
+            if (btnGis) btnGis.className = "px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5";
+            if (svgContainer) svgContainer.classList.remove('hidden');
+            if (gisContainer) gisContainer.classList.add('hidden');
+        } else {
+            if (btnGis) btnGis.className = "px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-1.5";
+            if (btnSvg) btnSvg.className = "px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5";
+            if (svgContainer) svgContainer.classList.add('hidden');
+            if (gisContainer) gisContainer.classList.remove('hidden');
+
+            setTimeout(() => {
+                initLeafletPoltekadMap();
+                if (leafletMap) leafletMap.invalidateSize();
+            }, 100);
+        }
+    }
+
+    function initLeafletPoltekadMap() {
+        if (leafletMap) return;
+        const mapEl = document.getElementById('leaflet-poltekad-map');
+        if (!mapEl || typeof L === 'undefined') return;
+
+        // Coordinates for Kesatrian Poltekad Kodiklatad
+        const poltekadCenter = [-7.8893, 112.5401];
+
+        leafletMap = L.map('leaflet-poltekad-map', {
+            center: poltekadCenter,
+            zoom: 16,
+            zoomControl: true,
+        });
+
+        // Crisp tactical map layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO &bull; Poltekad Kodiklatad Security',
+            maxZoom: 19
+        }).addTo(leafletMap);
+
+        // Sector Alpha Polygon
+        L.polygon([
+            [-7.8872, 112.5385],
+            [-7.8872, 112.5415],
+            [-7.8892, 112.5415],
+            [-7.8892, 112.5385]
+        ], {
+            color: '#6366f1',
+            fillColor: '#6366f1',
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: '4, 4'
+        }).addTo(leafletMap).bindPopup("<strong class='text-indigo-600'>SEKTOR ALPHA</strong><br>Pos Perimeter Utara & Gerbang Utama Poltekad");
+
+        // Sector Beta Polygon
+        L.polygon([
+            [-7.8894, 112.5385],
+            [-7.8894, 112.5420],
+            [-7.8914, 112.5420],
+            [-7.8914, 112.5385]
+        ], {
+            color: '#06b6d4',
+            fillColor: '#06b6d4',
+            fillOpacity: 0.15,
+            weight: 2,
+            dashArray: '4, 4'
+        }).addTo(leafletMap).bindPopup("<strong class='text-cyan-600'>SEKTOR BETA</strong><br>Pos Perimeter Selatan & Hangar Drone");
+
+        // Turret Firing Radius (200m)
+        L.circle([-7.8883, 112.5412], {
+            color: '#f59e0b',
+            fillColor: '#f59e0b',
+            fillOpacity: 0.1,
+            radius: 200,
+            weight: 1.5,
+            dashArray: '5, 5'
+        }).addTo(leafletMap).bindPopup("<strong class='text-amber-600'>TURRET NORTH-WEST</strong><br>Radius Jangkauan Tembak: 200m");
+
+        // Tactical Pins
+        const createPin = (icon, color) => {
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<div style="background:#0f172a; border:2px solid ${color}; color:${color}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); font-size:12px;">
+                    <i class="${icon}"></i>
+                </div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+        };
+
+        // HQ Marker
+        L.marker(poltekadCenter, { icon: createPin('fa-solid fa-shield-halved', '#10b981') })
+            .addTo(leafletMap).bindPopup("<strong>MARKAS KOMANDO (HQ)</strong><br>Pusat Kendali Operasi Terpadu");
+
+        // Camera Gate Main
+        L.marker([-7.8875, 112.5392], { icon: createPin('fa-solid fa-video', '#6366f1') })
+            .addTo(leafletMap).bindPopup("<strong>CAM_GATE_MAIN</strong><br>Kamera AI Surveilans");
+
+        // Turret North West
+        L.marker([-7.8883, 112.5412], { icon: createPin('fa-solid fa-crosshairs', '#f59e0b') })
+            .addTo(leafletMap).bindPopup("<strong>TURRET_NORTH_WEST</strong><br>Unit Turret Defensif");
+
+        // Drone Hangar
+        L.marker([-7.8905, 112.5398], { icon: createPin('fa-solid fa-helicopter', '#0ea5e9') })
+            .addTo(leafletMap).bindPopup("<strong>DRONE_HANGAR_01</strong><br>Hangar Drone Patroli");
+
+        // Drone Flight Route
+        L.polyline([
+            [-7.8905, 112.5398],
+            [-7.8875, 112.5385],
+            [-7.8872, 112.5415],
+            [-7.8912, 112.5418],
+            [-7.8905, 112.5398]
+        ], {
+            color: '#0ea5e9',
+            weight: 2,
+            dashArray: '6, 6'
+        }).addTo(leafletMap);
+    }
+
+    // Telegram Emergency Dispatch Helper
+    async function dispatchTelegramAlert() {
+        try {
+            const res = await fetch('/api/dashboard/send-telegram-alert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    threat_type: 'EMERGENCY_SECURITY_ALERT',
+                    location: `Sektor ${selectedSector} - Poltekad Command Center`
+                })
+            });
+            const data = await res.json();
+            playToneBeep(1200, 0.2);
+            showTacticalToast(data.message || 'Notifikasi Telegram Terkirim');
+        } catch (e) {
+            showTacticalToast('Gagal memancarkan sinyal notifikasi Telegram', 'error');
+        }
+    }
+
+    function showTacticalToast(msg, type = 'success') {
+        const toast = document.createElement('div');
+        const colorBg = type === 'success' ? 'bg-slate-900 border-emerald-500/50 text-emerald-400' : 'bg-rose-900 border-rose-500/50 text-rose-200';
+        toast.className = `fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md ${colorBg} text-xs font-mono transition-all duration-300 transform translate-y-2 opacity-0`;
+        toast.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i><span>${msg}</span>`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('translate-y-2', 'opacity-0');
+        }, 50);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
     window.addEventListener('load', () => {
         setInterval(updateClock, 1000);
         updateClock();
@@ -482,6 +741,8 @@
     async function triggerSimulatedThreat(type) {
         if (serverOfflineMode) return;
         try {
+            playTacticalSiren(type);
+
             await fetch('/api/dashboard/trigger-mock-event', {
                 method: 'POST',
                 headers: {
@@ -493,6 +754,15 @@
 
             flashMapThreat(type);
             pollSystemState();
+
+            const threatLabels = {
+                intruder: 'Penyusup Bersenjata Terdeteksi',
+                breach: 'Pembobolan Pagar Perimeter',
+                uav: 'Drone Tak Dikenal Melintas',
+                iot_attack: 'Anomali Serangan Paket IoT',
+                turret_fail: 'Malfungsi Sistem Turret'
+            };
+            showTacticalToast(`🚨 [ALERT] ${threatLabels[type] || 'Ancaman Taktis Terdeteksi'} pada Sektor ${selectedSector}!`, 'error');
 
             if (isTestRunning && currentTaskId === 1 && type === 'intruder' && selectedSector === 'Alpha') {
                 const navTurret = document.getElementById('nav-turret');
@@ -592,11 +862,13 @@
         const tabBarrel = document.getElementById('tab-turret-gun-barrel');
         if (barrel) barrel.style.transform = "rotate(90deg)";
         if (tabBarrel) tabBarrel.style.transform = "rotate(90deg)";
+        const panAngleEl = document.getElementById('turret-pan-angle');
+        const tabPanAngleEl = document.getElementById('tab-turret-pan-angle');
+        if (panAngleEl) panAngleEl.innerText = "90°";
+        if (tabPanAngleEl) tabPanAngleEl.innerText = "90°";
 
-        const pan = document.getElementById('turret-pan-angle');
-        const tabPan = document.getElementById('tab-turret-pan-angle');
-        if (pan) pan.innerText = "90°";
-        if (tabPan) tabPan.innerText = "90°";
+        playToneBeep(1400, 0.15);
+        showTacticalToast(`🎯 Target Sektor ${selectedSector} terkunci (Lock-On 90°)`);
 
         fetch('/api/gateway/receive', {
             method: 'POST',
@@ -617,6 +889,11 @@
     }
 
     function fireTurretManual() {
+        playToneBeep(220, 0.08);
+        setTimeout(() => playToneBeep(200, 0.08), 80);
+        setTimeout(() => playToneBeep(180, 0.08), 160);
+        showTacticalToast(`💥 Tembakan Beruntun Dilesatkan ke Sektor ${selectedSector}!`);
+
         const barrels = [document.getElementById('turret-gun-barrel'), document.getElementById('tab-turret-gun-barrel')];
         barrels.forEach(b => {
             if (b) b.classList.add('bg-rose-500');

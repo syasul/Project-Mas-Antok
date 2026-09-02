@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         // Seed default admin operator user
         User::factory()->create([
-            'name' => 'Letnan Dua Syamsul',
+            'name' => 'Letnan Dua Agung Nugroho',
             'email' => 'operator@poltekad.mil.id',
             'password' => bcrypt('poltekad123'),
         ]);

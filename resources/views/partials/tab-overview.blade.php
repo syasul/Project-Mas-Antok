@@ -56,16 +56,30 @@
             
             <!-- Map and Briefing Card -->
             <section class="glass-card rounded-2xl p-5 border border-slate-200/80 bg-white/70 shadow-sm">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                    <h3 class="text-xs font-bold tracking-wider text-slate-400 uppercase flex items-center gap-2">
-                        <i class="fa-solid fa-map-location-dot text-indigo-500"></i>
-                        Tata Letak Sektor Poltekad (Pusat Kendali Operasi)
-                    </h3>
-                    <span class="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-indigo-100/50 font-mono" id="selected-sector-badge">TERPILIH: ALPHA</span>
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-map-location-dot text-indigo-500"></i>
+                            Peta Sektor Poltekad (Pusat Kendali Operasi)
+                        </h3>
+                        <span class="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-indigo-100/50 font-mono" id="selected-sector-badge">TERPILIH: ALPHA</span>
+                    </div>
+
+                    <!-- Map Mode Toggle: Blueprint SVG vs Real GIS Leaflet -->
+                    <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-semibold">
+                        <button id="btn-map-mode-svg" onclick="switchMapMode('svg')" class="px-2.5 py-1 rounded-md bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-draw-polygon"></i>
+                            <span>Blueprint Taktis</span>
+                        </button>
+                        <button id="btn-map-mode-gis" onclick="switchMapMode('gis')" class="px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800 transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-satellite"></i>
+                            <span>GIS Satelit Riil</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- SVG Blueprint Map -->
-                <div class="bg-white border border-slate-150 rounded-xl relative overflow-hidden p-2 shadow-inner">
+                <!-- 1. SVG Blueprint Map -->
+                <div id="map-blueprint-container" class="bg-white border border-slate-150 rounded-xl relative overflow-hidden p-2 shadow-inner">
                     <svg viewBox="0 0 600 380" class="w-full h-auto text-slate-400 select-none">
                         <defs>
                             <pattern id="light-grid-cc" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -120,6 +134,21 @@
                         <polygon points="120,290 128,304 112,304" fill="#0ea5e9" id="map-node-drone"/>
                         <text x="136" y="301" fill="#64748b" font-size="8" font-family="monospace">DRONE_S4</text>
                     </svg>
+                </div>
+
+                <!-- 2. Interactive Satellite GIS Leaflet Map (Poltekad Kesatrian) -->
+                <div id="map-gis-container" class="hidden bg-slate-900 border border-slate-700 rounded-xl relative overflow-hidden h-[380px] w-full shadow-inner">
+                    <div id="leaflet-poltekad-map" class="w-full h-full z-0"></div>
+                    <!-- Tactical overlay HUD on top of Leaflet map -->
+                    <div class="absolute top-2 left-2 z-[400] bg-slate-900/80 backdrop-blur-md border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-[10px] text-slate-200 font-mono flex items-center gap-2 shadow-lg">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span>KOORDINAT POLTEKAD: <strong class="text-emerald-400">7°53'21.5"S 112°32'24.4"E</strong></span>
+                    </div>
+                    <div class="absolute bottom-2 right-2 z-[400] bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-lg px-2.5 py-1 text-[9px] text-slate-300 font-mono flex items-center gap-3 shadow-lg">
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Sensor</span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Turret (300m)</span>
+                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Drone Waypoint</span>
+                    </div>
                 </div>
 
                 <!-- Sector Detailed Briefing -->
