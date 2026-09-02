@@ -70,7 +70,7 @@
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 pointer-events-none">
                             <i class="fa-solid fa-envelope text-xs"></i>
                         </span>
-                        <input type="email" id="email" name="email" value="{{ old('email', 'operator@poltekad.mil.id') }}" required autofocus placeholder="operator@poltekad.mil.id"
+                        <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus placeholder="operator@poltekad.mil.id"
                             class="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 pl-9 pr-3 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 font-medium text-slate-900 font-mono">
                     </div>
                 </div>
@@ -81,14 +81,14 @@
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 pointer-events-none">
                             <i class="fa-solid fa-lock text-xs"></i>
                         </span>
-                        <input type="password" id="password" name="password" value="poltekad123" required placeholder="••••••••"
+                        <input type="password" id="password" name="password" required placeholder="••••••••"
                             class="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 pl-9 pr-3 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 font-medium text-slate-900">
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between text-xs pt-1">
                     <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-600 select-none">
-                        <input type="checkbox" name="remember" checked class="rounded border-slate-300 text-slate-900 focus:ring-slate-900">
+                        <input type="checkbox" name="remember" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900">
                         <span>Ingat Sesi Perangkat</span>
                     </label>
                 </div>
@@ -98,26 +98,6 @@
                     <i class="fa-solid fa-arrow-right text-[11px]"></i>
                 </button>
             </form>
-
-            <!-- Quick Preset Credentials -->
-            <div class="mt-6 border-t border-slate-100 pt-4">
-                <div class="text-[10px] font-bold uppercase font-mono text-slate-400 mb-2">AKUN DEFAULT PENGUJIAN:</div>
-                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-[11px] font-mono space-y-1 text-slate-700">
-                    <div class="flex justify-between">
-                        <span class="text-slate-500">Operator:</span>
-                        <span class="font-bold text-slate-900">Letnan Dua Antok</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-500">Email:</span>
-                        <span class="font-bold text-slate-900">operator@poltekad.mil.id</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-500">Password:</span>
-                        <span class="font-bold text-slate-900">poltekad123</span>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
         <!-- Footer Notice -->
