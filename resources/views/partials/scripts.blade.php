@@ -272,12 +272,32 @@
         }, 4000);
     }
 
+    let liveEventSource = null;
+    function initRealtimeSSE() {
+        if (typeof window.EventSource !== 'undefined') {
+            try {
+                if (liveEventSource) liveEventSource.close();
+                liveEventSource = new EventSource('/api/dashboard/stream');
+                liveEventSource.addEventListener('sensor_log', (e) => {
+                    pollSystemState();
+                });
+                liveEventSource.addEventListener('decision_log', (e) => {
+                    pollSystemState();
+                });
+                liveEventSource.onerror = () => {
+                    // Falls back gracefully to interval polling
+                };
+            } catch (e) {}
+        }
+    }
+
     window.addEventListener('load', () => {
         setInterval(updateClock, 1000);
         updateClock();
 
         initCameraAIFeed();
         initPerimeterWave();
+        initRealtimeSSE();
 
         setInterval(pollSystemState, 2000);
         pollSystemState();

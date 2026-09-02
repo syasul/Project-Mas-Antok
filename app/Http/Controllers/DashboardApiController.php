@@ -312,4 +312,62 @@ class DashboardApiController extends Controller
             'log_id' => $log->id
         ]);
     }
+
+    /**
+     * Server-Sent Events (SSE) stream endpoint for real-time telemetry updates.
+     */
+    public function stream(Request $request)
+    {
+        return response()->stream(function () {
+            // Send initial heartbeat
+            echo "event: connected\n";
+            echo "data: " . json_encode(['status' => 'connected', 'timestamp' => time()]) . "\n\n";
+            ob_flush();
+            flush();
+
+            $lastLogId = SensorLog::max('id') ?? 0;
+            $lastDecisionId = DecisionLog::max('id') ?? 0;
+            $iterations = 0;
+
+            // Stream for up to 30 cycles or until client aborts
+            while (!connection_aborted() && $iterations < 30) {
+                $iterations++;
+
+                // Check for new sensor logs
+                $newLogs = SensorLog::where('id', '>', $lastLogId)->orderBy('id', 'asc')->get();
+                if ($newLogs->isNotEmpty()) {
+                    foreach ($newLogs as $log) {
+                        echo "event: sensor_log\n";
+                        echo "data: " . json_encode($log) . "\n\n";
+                        $lastLogId = max($lastLogId, $log->id);
+                    }
+                }
+
+                // Check for new decision logs
+                $newDecisions = DecisionLog::where('id', '>', $lastDecisionId)->with('securityEvent')->orderBy('id', 'asc')->get();
+                if ($newDecisions->isNotEmpty()) {
+                    foreach ($newDecisions as $dec) {
+                        echo "event: decision_log\n";
+                        echo "data: " . json_encode($dec) . "\n\n";
+                        $lastDecisionId = max($lastDecisionId, $dec->id);
+                    }
+                }
+
+                // Send heartbeat ping every 2 cycles
+                if ($iterations % 2 === 0) {
+                    echo "event: ping\n";
+                    echo "data: " . json_encode(['time' => time()]) . "\n\n";
+                }
+
+                ob_flush();
+                flush();
+                usleep(500000); // 500ms cycle
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
 }
